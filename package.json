@@ -16,6 +16,7 @@
     "mime": "^3.0.0",
     "morgan": "1.9.1",
     "pump": "^3.0.0",
+    "range-parser": "^1.2.1",
     "webtorrent": "^0.107.16"
   },
   "devDependencies": {

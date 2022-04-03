@@ -1,6 +1,9 @@
 let fs = require("fs");
 let path = require("path");
 let express = require("express");
+const rangeParser = require("range-parser");
+const mime = require("mime");
+const pump = require("pump");
 let WebTorrent = require("webtorrent");
 
 const DOWNLOAD_PATH = "E:/torrent/webtorrent";
@@ -104,128 +107,60 @@ router.get("/add/:magnet", function (req, res) {
 //	return 		<-	A chunk of the video file as buffer (binary data)
 //
 router.get("/stream/:magnet/:file_name", function (req, res, next) {
-  //
-  //	1.	Extract the magnet Hash and save it in a meaningful variable.
-  //
   let magnet = req.params.magnet;
-
-  //
-  //	2.	Returns the torrent with the given torrentId. Convenience method.
-  //		Easier than searching through the client.torrents array. Returns
-  //		null if no matching torrent found.
-  //
   var tor = client.get(magnet);
-  console.log(tor);
 
-  //
-  //	3.	Variable that will store the user selected file
-  //
-  let file = {};
+  const file = tor.files.find((file) => file.name === req.params.file_name);
 
-  //
-  //	4.	Loop over all the files contained inside a Magnet Hash and find the one
-  //		the user selected.
-  //
-  file = tor.files.find((file) => file.name === req.params.file_name);
+  if (!file) {
+    return res.status(404).end();
+  }
 
-  //
-  //	5.	Save the range the browser is asking for in a clear and
-  //		reusable variable
-  //
-  //		The range tells us what part of the file the browser wants
-  //		in bytes.
-  //
-  //		EXAMPLE: bytes=65534-33357823
-  //
+  // The range tells us what part of the file the browser wants in bytes.
   let range = req.headers.range;
-
   console.log(range);
 
-  //
-  //	6.	Make sure the browser ask for a range to be sent.
-  //
+  // Make sure the browser ask for a range to be sent.
   if (!range) {
-    //
-    // 	1.	Create the error
-    //
     let err = new Error("Wrong range");
     err.status = 416;
 
-    //
-    //	->	Send the error and stop the request.
-    //
     return next(err);
   }
 
-  //
-  //	7.	Convert the string range in to an array for easy use.
-  //
+  // Convert the string range in to an array for easy use.
   let positions = range.replace(/bytes=/, "").split("-");
 
-  //
-  //	8.	Convert the start value in to an integer
-  //
+  // Convert the start value in to an integer
   let start = parseInt(positions[0], 10);
 
-  //
-  //	9.	Save the total file size in to a clear variable
-  //
   let file_size = file.length;
-
-  //
-  //	10.	IF 		the end parameter is present we convert it in to an
-  //				integer, the same way we did the start position
-  //
-  //		ELSE 	We use the file_size variable as the last part to be
-  //				sent.
-  //
   let end = positions[1] ? parseInt(positions[1], 10) : file_size - 1;
 
-  //
-  //	11.	Calculate the amount of bits will be sent back to the
-  //		browser.
-  //
   let chunksize = end - start + 1;
 
-  //
-  //	12.	Create the header for the video tag so it knows what is
-  //		receiving.
-  //
   let head = {
     "Content-Range": "bytes " + start + "-" + end + "/" + file_size,
     "Accept-Ranges": "bytes",
     "Content-Length": chunksize,
-    "Content-Type": "video/mp4",
+    "Content-Type": mime.getType(file.name),
   };
 
-  //
-  //	13.	Send the custom header
-  //
   res.writeHead(206, head);
 
-  //
-  //	14.	Create the createReadStream option object so createReadStream
-  //		knows how much data it should be read from the file.
-  //
+  // Create the createReadStream option object so createReadStream knows how much data it should be read from the file.
   let stream_position = {
     start: start,
     end: end,
   };
 
-  //
-  //	15.	Create a stream chunk based on what the browser asked us for
-  //
+  // Create a stream chunk based on what the browser asked us for
   let stream = file.createReadStream(stream_position);
 
-  //
-  //	16.	Pipe the video chunk to the request back to the request
-  //
+  // Pipe the video chunk to the request back to the request
   stream.pipe(res);
 
-  //
-  //	->	If there was an error while opening a stream we stop the
-  //		request and display it.
-  //
+  // If there was an error while opening a stream we stop the request and display it.
   stream.on("error", function (err) {
     return next(err);
   });
