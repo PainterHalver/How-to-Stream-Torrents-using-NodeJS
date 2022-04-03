@@ -8,6 +8,8 @@ let WebTorrent = require("webtorrent");
 
 const DOWNLOAD_PATH = "E:/torrent/webtorrent";
 
+// magnet:?xt=urn:btih:54908313d54387de2948d73080b8d808b6c7eb2b&dn=Spider-Man.No.Way.Home.2021.1080p.BluRay.H264.AAC-RARBG&tr=http%3A%2F%2Ftracker.trackerfix.com%3A80%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2790&tr=udp%3A%2F%2F9.rarbg.to%3A2910&tr=udp%3A%2F%2Ftracker.fatkhoala.org%3A13720&tr=udp%3A%2F%2Ftracker.slowcheetah.org%3A14730
+
 let router = express.Router();
 
 //
@@ -109,6 +111,7 @@ router.get("/add/:magnet", function (req, res) {
 router.get("/stream/:magnet/:file_name", function (req, res, next) {
   let magnet = req.params.magnet;
   var tor = client.get(magnet);
+  console.log("Got torrent!!!!");
 
   const file = tor.files.find((file) => file.name === req.params.file_name);
 
@@ -116,54 +119,34 @@ router.get("/stream/:magnet/:file_name", function (req, res, next) {
     return res.status(404).end();
   }
 
-  // The range tells us what part of the file the browser wants in bytes.
-  let range = req.headers.range;
-  console.log(range);
+  res.statusCode = 200;
+  res.setHeader("Content-Type", mime.getType(file.name));
+  res.setHeader("Accept-Ranges", "bytes");
+  res.attachment(file.name);
 
-  // Make sure the browser ask for a range to be sent.
-  if (!range) {
-    let err = new Error("Wrong range");
-    err.status = 416;
+  console.log("SET HEADER PART 1");
 
-    return next(err);
+  let range = rangeParser(file.length, req.headers.range || "");
+
+  console.log("GOT RANGE!!!!");
+
+  if (Array.isArray(range)) {
+    res.statusCode = 206;
+    range = range[0];
+
+    res.setHeader(
+      "Content-Range",
+      `bytes ${range.start}-${range.end}/${file.length}`
+    );
+    res.setHeader("Content-Length", range.end - range.start + 1);
+  } else {
+    range = null;
+    res.setHeader("Content-Length", file.length);
   }
 
-  // Convert the string range in to an array for easy use.
-  let positions = range.replace(/bytes=/, "").split("-");
+  console.log("ALL GOOD, PUMPING!!!!");
 
-  // Convert the start value in to an integer
-  let start = parseInt(positions[0], 10);
-
-  let file_size = file.length;
-  let end = positions[1] ? parseInt(positions[1], 10) : file_size - 1;
-
-  let chunksize = end - start + 1;
-
-  let head = {
-    "Content-Range": "bytes " + start + "-" + end + "/" + file_size,
-    "Accept-Ranges": "bytes",
-    "Content-Length": chunksize,
-    "Content-Type": mime.getType(file.name),
-  };
-
-  res.writeHead(206, head);
-
-  // Create the createReadStream option object so createReadStream knows how much data it should be read from the file.
-  let stream_position = {
-    start: start,
-    end: end,
-  };
-
-  // Create a stream chunk based on what the browser asked us for
-  let stream = file.createReadStream(stream_position);
-
-  // Pipe the video chunk to the request back to the request
-  stream.pipe(res);
-
-  // If there was an error while opening a stream we stop the request and display it.
-  stream.on("error", function (err) {
-    return next(err);
-  });
+  pump(file.createReadStream(range), res);
 });
 
 //
@@ -223,10 +206,11 @@ router.get("/delete/:magnet", function (req, res, next) {
   //	1.	Extract the magnet Hash and save it in a meaningful variable.
   //
   let magnet = req.params.magnet;
+  let torrent = client.get(magnet);
 
-  //
-  //	2.	Remove the Magnet Hash from the client.
-  //
+  // Delete files from disk
+  fs.unlinkSync(path.join(DOWNLOAD_PATH, torrent.name));
+
   client.remove(magnet, function () {
     res.status(200);
     res.end();

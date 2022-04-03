@@ -6,7 +6,8 @@
     "node": "6.9.1"
   },
   "scripts": {
-    "start": "nf start"
+    "start": "node --max-old-space-size=8192 server.js",
+    "nf": "nf start"
   },
   "dependencies": {
     "body-parser": "1.15.1",
