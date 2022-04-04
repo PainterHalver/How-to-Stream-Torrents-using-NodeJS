@@ -6,7 +6,6 @@ const mime = require("mime");
 const pump = require("pump");
 const WebTorrent = require("webtorrent");
 
-const DOWNLOAD_PATH = "E:/torrent/webtorrent";
 const trackers = require("../utils/trackers");
 
 // magnet:?xt=urn:btih:54908313d54387de2948d73080b8d808b6c7eb2b&dn=Spider-Man.No.Way.Home.2021.1080p.BluRay.H264.AAC-RARBG&tr=http%3A%2F%2Ftracker.trackerfix.com%3A80%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2790&tr=udp%3A%2F%2F9.rarbg.to%3A2910&tr=udp%3A%2F%2Ftracker.fatkhoala.org%3A13720&tr=udp%3A%2F%2Ftracker.slowcheetah.org%3A14730
@@ -45,7 +44,6 @@ router.get("/add/:magnet", (req, res) => {
   client.add(
     magnet,
     {
-      path: DOWNLOAD_PATH,
       announce: trackers,
       store: require("memory-chunk-store"),
     },
