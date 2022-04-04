@@ -2,23 +2,23 @@
   "name": "how-to-stream-a-movie-using-nodejs",
   "version": "1.0.0",
   "private": true,
-  "engines": {
-    "node": "6.9.1"
-  },
   "scripts": {
     "start": "node --max-old-space-size=8192 server.js",
     "nf": "nf start"
   },
   "dependencies": {
+    "@types/webtorrent": "^0.109.3",
     "body-parser": "1.15.1",
     "cors": "^2.8.1",
     "express": "4.13.4",
+    "fs-chunk-store": "^3.0.0",
     "hjs": "0.0.6",
+    "memory-chunk-store": "^1.3.5",
     "mime": "^3.0.0",
     "morgan": "1.9.1",
     "pump": "^3.0.0",
     "range-parser": "^1.2.1",
-    "webtorrent": "^0.107.16"
+    "webtorrent": "^1.8.13"
   },
   "devDependencies": {
     "foreman": "3.0.1",

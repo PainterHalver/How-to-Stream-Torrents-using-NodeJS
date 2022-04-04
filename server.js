@@ -3,7 +3,7 @@ const os = require("os");
 const http = require("http");
 const cluster = require("cluster");
 
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8888;
 
 //
 //	  Create, meaning spawn multiple instances of the same app to take

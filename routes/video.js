@@ -1,55 +1,33 @@
-let fs = require("fs");
-let path = require("path");
-let express = require("express");
+const fs = require("fs");
+const path = require("path");
+const express = require("express");
 const rangeParser = require("range-parser");
 const mime = require("mime");
 const pump = require("pump");
-let WebTorrent = require("webtorrent");
+const WebTorrent = require("webtorrent");
 
 const DOWNLOAD_PATH = "E:/torrent/webtorrent";
+const trackers = require("../utils/trackers");
 
 // magnet:?xt=urn:btih:54908313d54387de2948d73080b8d808b6c7eb2b&dn=Spider-Man.No.Way.Home.2021.1080p.BluRay.H264.AAC-RARBG&tr=http%3A%2F%2Ftracker.trackerfix.com%3A80%2Fannounce&tr=udp%3A%2F%2F9.rarbg.me%3A2790&tr=udp%3A%2F%2F9.rarbg.to%3A2910&tr=udp%3A%2F%2Ftracker.fatkhoala.org%3A13720&tr=udp%3A%2F%2Ftracker.slowcheetah.org%3A14730
 
-let router = express.Router();
+const router = express.Router();
 
-//
-//	1.	When the server starts create a WebTorrent client
-//
-let client = new WebTorrent();
+const client = new WebTorrent({ downloadLimit: 5000000 });
 
-//
-//	2.	The object that holds the client stats to be displayed in the front end
-//	using an API call every n amount of time using jQuery.
-//
 let stats = {
   progress: 0,
   downloadSpeed: 0,
   ratio: 0,
 };
 
-//
-//	3.	The variable that holds the error message from the client. Farly crude but
-//		I don't expect to much happening hear aside the potential to add the same
-//		Magnet Hash twice.
-//
 let error_message = "";
 
-//
-//	4.	Listen for any potential client error and update the above variable so
-//		the front end can display it in the browser.
-//
-client.on("error", function (err) {
+client.on("error", (err) => {
   error_message = err.message;
 });
 
-//
-//	5.	Emitted by the client whenever data is downloaded. Useful for reporting the
-//		current torrent status of the client.
-//
-client.on("download", function (bytes) {
-  //
-  //	1.	Update the object with fresh data
-  //
+client.on("download", (bytes) => {
   stats = {
     progress: Math.round(client.progress * 100 * 100) / 100,
     downloadSpeed: client.downloadSpeed,
@@ -57,58 +35,38 @@ client.on("download", function (bytes) {
   };
 });
 
-//
-//	API call that adds a new Magnet Hash to the client so it can start
-//	downloading it.
-//
-//	magnet 		-> 	Magnet Hash
-//
-//	return 		<-	An array with a list of files
-//
-router.get("/add/:magnet", function (req, res) {
-  //
-  //	1.	Extract the magnet Hash and save it in a meaningful variable.
-  //
-  let magnet = req.params.magnet;
+router.get("/add/:magnet", (req, res) => {
+  const magnet = req.params.magnet;
 
-  //
-  //	2.	Add the magnet Hash to the client
-  //
-  client.add(magnet, { path: DOWNLOAD_PATH }, function (torrent) {
-    //
-    //	1.	The array that will hold the content of the Magnet Hash.
-    //
-    let files = [];
+  // const old_magnets = client.torrents.map((torrent) => torrent.infoHash);
+  // old_magnets.forEach((magnet) => client.remove(magnet));
+  // console.log("CLEARED OLD MAGNETS");
 
-    //
-    //	2.	Loop over all the file that are inside the Magnet Hash and add
-    //	them to the above variable.
-    //
-    torrent.files.forEach(function (data) {
-      files.push({
-        name: data.name,
-        length: data.length,
+  client.add(
+    magnet,
+    {
+      path: DOWNLOAD_PATH,
+      announce: trackers,
+      store: require("memory-chunk-store"),
+    },
+    function (torrent) {
+      let files = [];
+      torrent.files.forEach(function (file) {
+        files.push({
+          name: file.name,
+          length: file.length,
+        });
       });
-    });
+      torrent.on("error", (error) => {
+        console.log("ADD MAGNET ERROR: ", error);
+      });
 
-    //
-    //	->	Once we have all the data send it back to the browser to be
-    //		displayed.
-    //
-    res.status(200);
-    res.json(files);
-  });
+      res.json(files);
+    }
+  );
 });
 
-//
-//	The API call to start streaming the selected file to the video tag.
-//
-//	magnet 		-> 	Magnet Hash
-//	file_name 	-> 	the selected file name that is within the Magnet Hash
-//
-//	return 		<-	A chunk of the video file as buffer (binary data)
-//
-router.get("/stream/:magnet/:file_name", function (req, res, next) {
+router.get("/stream/:magnet/:file_name", (req, res, next) => {
   let magnet = req.params.magnet;
   var tor = client.get(magnet);
   console.log("Got torrent!!!!");
@@ -149,71 +107,37 @@ router.get("/stream/:magnet/:file_name", function (req, res, next) {
   pump(file.createReadStream(range), res);
 });
 
-//
-//	The API call that gets all the Magnet Hashes that the client is actually
-//	having.
-//
-//	return 		<-	An array with all the Magnet Hashes
-//
-router.get("/list", function (req, res, next) {
-  //
-  //	1.	Loop over all the Magnet Hashes
-  //
-  let torrent = client.torrents.reduce(function (array, data) {
-    array.push({
-      hash: data.infoHash,
-    });
+router.get("/list", (req, res, next) => {
+  try {
+    let torrent = client.torrents.reduce(function (array, data) {
+      array.push({
+        hash: data.infoHash,
+      });
 
-    return array;
-  }, []);
+      return array;
+    }, []);
 
-  //
-  //	->	Return the Magnet Hashes
-  //
-  res.status(200);
-  res.json(torrent);
+    //	->	Return the Magnet Hashes
+    res.status(200).json(torrent);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json(error);
+  }
 });
 
-//
-//	The API call that sends back the stats of the client
-//
-//	return 		<-	A object with the client stats
-//
-router.get("/stats", function (req, res, next) {
-  res.status(200);
-  res.json(stats);
+router.get("/stats", (req, res, next) => {
+  res.status(200).json(stats);
 });
 
-//
-//	The API call that gets errors that occurred with the client
-//
-//	return 		<-	A a string with the error
-//
-router.get("/errors", function (req, res, next) {
-  res.status(200);
-  res.json(error_message);
+router.get("/errors", (req, res, next) => {
+  res.status(200).json(error_message);
 });
 
-//
-//	The API call to delete a Magnet Hash from the client.
-//
-//	magnet 		-> 	Magnet Hash
-//
-//	return 		<-	Just the status of the request
-//
-router.get("/delete/:magnet", function (req, res, next) {
-  //
-  //	1.	Extract the magnet Hash and save it in a meaningful variable.
-  //
+router.get("/delete/:magnet", (req, res, next) => {
   let magnet = req.params.magnet;
-  let torrent = client.get(magnet);
 
-  // Delete files from disk
-  fs.unlinkSync(path.join(DOWNLOAD_PATH, torrent.name));
-
-  client.remove(magnet, function () {
-    res.status(200);
-    res.end();
+  client.remove(magnet, { destroyStore: true }, function () {
+    res.status(200).end();
   });
 });
 
