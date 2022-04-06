@@ -40,7 +40,7 @@
 		</ul>
 
 		<p>Magnet Hash <input type="text" name="magnet" placeholder="Enter torrent URL." id="hash-input"> 
-		<button id="load">Load</button><button id="paste">Paste From Clipboard</button></p>
+		<button id="load">Load</button><button id="clear">Clear</button></p>
 
 		<p>Magnet Contents:</p>
 
@@ -65,7 +65,6 @@
 		<ul id="errors">
 			<li>N/A</li>
 		</ul>
-
 	</body>
 
 	<script>
@@ -88,10 +87,8 @@
 			load();
 		});
 
-		$('#paste').click(function() {
-			navigator.clipboard.readText().then(text => {
-				$("#hash-input").val("text");
-			})
+		$('#clear').click(function() {
+			$("#hash-input").val('').focus();
 		});
 
 		$('#content').on('click', '.file', function() {
