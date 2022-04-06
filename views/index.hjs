@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 		<title>Torrent Client</title>
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
 		<style type="text/css">
@@ -15,13 +15,16 @@
     			text-decoration: underline;
     			cursor: pointer;
 			}
+			#video-player {
+				width: 90vw;
+			}
 		</style>
 
 	</head>
 
 	<body>
 
-		<video autoplay src="" controls ></video>
+		<video autoplay src="" controls id="video-player"></video>
 
 		<p>Video source: <a id="video-src"></a> || <a id="vlc-src"></a> || <a id="nplayer-src"></a></p>
 
@@ -87,7 +90,7 @@
 
 		$('#paste').click(function() {
 			navigator.clipboard.readText().then(text => {
-				$("#hash-input").val(text);
+				$("#hash-input").val("text");
 			})
 		});
 
@@ -98,11 +101,11 @@
 
 			// Display video source
 			const rawSource = api + '/stream/' + magnet + "/" + file_name;
-			$('#video-src').text("Raw Video Source");
+			$('#video-src').text("Raw");
 			$('#video-src').attr("href", rawSource);
-			$('#vlc-src').text("VLC Source");
+			$('#vlc-src').text("VLC");
 			$('#vlc-src').attr("href", `vlc://${window.location.origin}${rawSource}`);
-			$('#nplayer-src').text("nPlayer Source");
+			$('#nplayer-src').text("nPlayer");
 			$('#nplayer-src').attr("href", `nplayer://${window.location.origin}${rawSource}`);
 		});
 
