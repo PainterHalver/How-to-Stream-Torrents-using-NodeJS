@@ -28,7 +28,7 @@
 
 		<p>Video source: <a id="video-src"></a> || <a id="vlc-src"></a> || <a id="nplayer-src"></a></p>
 
-		<p>Samples Torrents:</p>
+		{{!-- <p>Samples Torrents:</p>
 
 		<ul id="demo_magnets">
 			<li><span class="magnet url">334f62943e694041a1eaa4bcd474956071240fdb</span> - <span>For The Love of Spock - Sneak Peak</span></li>
@@ -37,9 +37,9 @@
 			<li><span class="magnet url">6fd85ac1a2193167810da8c60e92604aedd70fe5</span> - <span>Samuel Proffitt - Depth ft. Naadia (Official Video)</span></li>
 			<li><span class="magnet url">0edb493361daaf35a69571b4629202127431aaca</span> - <span>TRAD+ album experience: INTERFERENCE</span></li>
 			<li><span class="magnet url">ec35ea4269c1b5613a0799d7a5c124e8478405ee</span> - <span>NUTS! <a href="http://www.nutsthefilm.com/" target="_blank">www.nutsthefilm.com</a></span></li>
-		</ul>
+		</ul> --}}
 
-		<p>Magnet Hash <input type="text" name="magnet" placeholder="Enter torrent URL." id="hash-input"> 
+		<p>Magnet Hash <input type="text" name="magnet" placeholder="Enter torrent URL." id="hash-input">
 		<button id="load">Load</button><button id="clear">Clear</button></p>
 
 		<p>Magnet Contents:</p>
@@ -89,15 +89,16 @@
 
 		$('#clear').click(function() {
 			$("#hash-input").val('').focus();
+			document.execCommand("paste");
 		});
 
 		$('#content').on('click', '.file', function() {
 			var magnet = $('input').val();
 			var file_name = $(this).attr("data-name");
-			$('video').attr('src', api + '/stream/' + magnet + "/" + file_name);
+			$('video').attr('src', api + '/stream/' + encodeURIComponent(magnet) + "/" + file_name);
 
 			// Display video source
-			const rawSource = api + '/stream/' + magnet + "/" + file_name;
+			const rawSource = api + '/stream/' + encodeURIComponent(magnet) + "/" + file_name;
 			$('#video-src').text("Raw");
 			$('#video-src').attr("href", rawSource);
 			$('#vlc-src').text("VLC");
@@ -123,7 +124,7 @@
 				return console.error("No Magnet Hash");
 			}
 
-			$.get(api + '/add/' + magnet, function(data) {
+			$.get(api + '/add/' + encodeURIComponent(magnet), function(data) {
 				$("#content").empty();
 				$.each(data, function(index, obj) {
 					$("#content").append('<li class="file url" data-name="' + obj.name + '"><span class="url">'+ obj.name + '</span> (' + format_bytes(obj.length, 0) + ') <a href="' + api + '/stream/' + magnet + "/" + obj.name + '">SRC</a></li>');
