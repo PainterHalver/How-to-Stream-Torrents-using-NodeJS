@@ -110,9 +110,9 @@
 	});
 
 	contents.addEventListener('click', (e) => {
-		if (e.target.classList.contains('file')) {
-			const fileName = e.target.dataset.name;
-			const rawSource = `/video/stream/${encodeURIComponent(currentMagnet)}/${fileName}`;
+		if (e.target.classList.contains('file-name')) {
+			const fileName = e.target.parentNode.dataset.name;
+			const rawSource = `/video/stream/${currentMagnet}/${fileName}`;
 
 			video.src = rawSource;
 
@@ -152,7 +152,7 @@
 		data.forEach((file) => {
 			contents.innerHTML += `
 			<li class="file url" data-name="${file.name}">
-				<span class="url">${file.name}</span> 
+				<span class="url file-name">${file.name}</span> 
 				(${format_bytes(file.length, 0)}) 
 				<a href="/video/stream/${currentMagnet}/${file.name}">SRC</a>
 			</li>`
