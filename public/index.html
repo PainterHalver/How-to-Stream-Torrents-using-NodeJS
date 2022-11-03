@@ -77,7 +77,10 @@
 	</ul>
 </body>
 
+<!-- Socket.io magic -->
+<script src="/socket.io/socket.io.js"></script>
 <script>
+	const socket = io();
 	let currentMagnet = null;
 
 	// HTML Nodes
@@ -161,11 +164,10 @@
 		btnLoad.disabled = false;
 	};
 
-	// 	TODO: Call this function on some interval or events or CHANGE to websocket
-	async function client_magnet_list() {
-		const res = await fetch('/video/list');
-		const data = await res.json();
+	setInterval(() => { socket.emit("need_list"); }, 1000);
+	setInterval(() => { socket.emit("need_stats"); }, 1000);
 
+	socket.on("list", (data) => {
 		magnets.innerHTML = "";
 		if (data.length > 0) {
 			data.forEach((magnet, index) => {
@@ -175,27 +177,18 @@
 		else {
 			magnets.innerHTML = '<li>N/A</li>';
 		}
+	});
 
-		setTimeout(client_magnet_list, 1000);
-	}
-
-	// 	TODO: Call this function on some interval or events or CHANGE to websocket
-	async function check_for_client_stats() {
-		const res = await fetch('/video/stats');
-		const data = await res.json();
-
+	socket.on("stats", (data) => {
 		stats.innerHTML = `
 			<li>Progress: ${data.progress}%</li>
 			<li>Download Speed: ${format_bytes(data.downloadSpeed, 0)}/s</li>
 			<li>Ratio: ${data.ratio}</li>
 		`;
-
-		setTimeout(check_for_client_stats, 1000);
-	}
+	});
 
 	// Run
 	client_magnet_list();
-	check_for_client_stats();
 
 	//	Convert bytes to a human readable form
 	function format_bytes(bytes, decimals) {

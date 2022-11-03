@@ -2,8 +2,34 @@ const app = require("./app");
 const os = require("os");
 const http = require("http");
 const cluster = require("cluster");
+const { Server } = require("socket.io");
+
+const server = http.createServer(app);
 
 const port = process.env.PORT || 8888;
+
+const io = new Server(server)
+io.on("connection", (socket) => {
+  console.log("A user connected");
+  socket.on("disconnect", () => {
+    console.log("A user disconnected");
+  });
+
+  socket.on("need_stats", () => {
+    socket.emit("stats", global.stats);
+  })
+
+  socket.on("need_list", () => {
+    socket.emit("list", global.getList());
+  })
+});
+
+server.listen(port, () => {
+  console.log(`Server listening on port ${port}...`);
+});
+
+module.exports = server;
+
 
 //
 //	  Create, meaning spawn multiple instances of the same app to take
@@ -49,6 +75,6 @@ const port = process.env.PORT || 8888;
 //   console.log(`Worker ${process.pid} started`);
 // }
 
-app.listen(port, () => {
-  console.log(`Server ${process.pid} is running on port ${port}`);
-});
+// app.listen(port, () => {
+//   console.log(`Server ${process.pid} is running on port ${port}`);
+// });

@@ -8,23 +8,28 @@ const WebTorrent = require("webtorrent");
 
 const trackers = require("../utils/trackers");
 
-// Sintel
-// magnet:?xt=urn:btih:08ada5a7a6183aae1e09d831df6748d566095a10&dn=Sintel&tr=udp%3A%2F%2Fexplodie.org%3A6969&tr=udp%3A%2F%2Ftracker.coppersurfer.tk%3A6969&tr=udp%3A%2F%2Ftracker.empire-js.us%3A1337&tr=udp%3A%2F%2Ftracker.leechers-paradise.org%3A6969&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337&tr=wss%3A%2F%2Ftracker.btorrent.xyz&tr=wss%3A%2F%2Ftracker.fastcast.nz&tr=wss%3A%2F%2Ftracker.openwebtorrent.com&ws=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2F&xs=https%3A%2F%2Fwebtorrent.io%2Ftorrents%2Fsintel.torrent
-
 const router = express.Router();
 
 const client = new WebTorrent({ downloadLimit: 7000000 });
 
-let stats = {
+global.stats = {
   progress: 0,
   downloadSpeed: 0,
   ratio: 0,
 };
 
-let error_message = "";
+global.getList = () => {
+  return client.torrents.reduce(function (array, data) {
+    array.push({
+      hash: data.infoHash,
+    });
+
+    return array;
+  }, []);
+}
 
 client.on("error", (err) => {
-  error_message = err.message;
+  // TODO: Socket.io
 });
 
 client.on("download", (bytes) => {
@@ -34,6 +39,7 @@ client.on("download", (bytes) => {
     ratio: client.ratio,
   };
 });
+
 
 router.get("/add/:magnet", (req, res) => {
   const magnet = req.params.magnet;
@@ -111,31 +117,27 @@ router.get("/stream/:magnet/:file_name", (req, res, next) => {
   pump(file.createReadStream(range), res);
 });
 
-router.get("/list", (req, res, next) => {
-  try {
-    let torrent = client.torrents.reduce(function (array, data) {
-      array.push({
-        hash: data.infoHash,
-      });
+// router.get("/list", (req, res, next) => {
+//   try {
+//     let torrent = client.torrents.reduce(function (array, data) {
+//       array.push({
+//         hash: data.infoHash,
+//       });
 
-      return array;
-    }, []);
+//       return array;
+//     }, []);
 
-    //	->	Return the Magnet Hashes
-    res.status(200).json(torrent);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json(error);
-  }
-});
+//     //	->	Return the Magnet Hashes
+//     res.status(200).json(torrent);
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json(error);
+//   }
+// });
 
-router.get("/stats", (req, res, next) => {
-  res.status(200).json(stats);
-});
-
-router.get("/errors", (req, res, next) => {
-  res.status(200).json(error_message);
-});
+// router.get("/stats", (req, res, next) => {
+//   res.status(200).json(stats);
+// });
 
 router.get("/delete/:magnet", (req, res, next) => {
   let magnet = req.params.magnet;
