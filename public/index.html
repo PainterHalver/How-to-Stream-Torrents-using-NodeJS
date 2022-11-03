@@ -1,0 +1,213 @@
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+	<title>Torrent Client</title>
+	<style type="text/css">
+		body {
+			font-family: monospace;
+		}
+
+		.url:hover {
+			text-decoration: underline;
+			cursor: pointer;
+		}
+
+		#video-player {
+			width: 90vw;
+		}
+
+		#hash-input {
+			width: clamp(200px, 30vw, 500px);
+		}
+
+		.hidden {
+			display: none;
+			visibility: hidden;
+		}
+	</style>
+
+</head>
+
+<body>
+
+	<video autoplay src="" controls id="video-player"></video>
+
+	<p>Video source: <a id="video-src"></a> || <a id="vlc-src"></a> || <a id="nplayer-src"></a></p>
+
+	<p>Samples Torrents:</p>
+
+	<ul id="demo_magnets">
+		<li><span class="magnet url">334f62943e694041a1eaa4bcd474956071240fdb</span> - <span>For The Love of Spock -
+				Sneak Peak</span></li>
+		<li><span class="magnet url">f76ad565160789101bf986ba582d29584d9fee67</span> - <span>SNOWDEN - Official
+				Trailer</span></li>
+		<li><span class="magnet url">6a9759bffd5c0af65319979fb7832189f4f3c35d</span> - <span>Sintel (Blender Open Movie
+				Project) <a href="https://durian.blender.org" target="_blank">durian.blender.org</a></span></li>
+		<li><span class="magnet url">6fd85ac1a2193167810da8c60e92604aedd70fe5</span> - <span>Samuel Proffitt - Depth ft.
+				Naadia (Official Video)</span></li>
+		<li><span class="magnet url">0edb493361daaf35a69571b4629202127431aaca</span> - <span>TRAD+ album experience:
+				INTERFERENCE</span></li>
+		<li><span class="magnet url">ec35ea4269c1b5613a0799d7a5c124e8478405ee</span> - <span>NUTS! <a
+					href="http://www.nutsthefilm.com/" target="_blank">www.nutsthefilm.com</a></span></li>
+	</ul>
+
+	<p>Magnet Hash <input type="text" name="magnet" placeholder="Enter torrent URL." id="hash-input">
+		<button id="load">Load</button><button id="clear">Clear</button>
+	</p>
+
+	<p>Magnet Contents:</p>
+
+	<ul id="contents"></ul>
+
+	<p>Client Magnets:</p>
+
+	<ul id="magnets">
+		<li>N/A</li>
+	</ul>
+
+	<p>Client Stats:</p>
+
+	<ul id="stats">
+		<li>Progress: 0%</li>
+		<li>Download Speed: 0 Byte/s</li>
+		<li>Ratio: 0</li>
+	</ul>
+</body>
+
+<script>
+	let currentMagnet = null;
+
+	// HTML Nodes
+	const video = document.getElementById('video-player');
+	const videoSrc = document.getElementById('video-src');
+	const vlcSrc = document.getElementById('vlc-src');
+	const nplayerSrc = document.getElementById('nplayer-src');
+	const magnets = document.getElementById('magnets');
+	const stats = document.getElementById('stats');
+	const contents = document.getElementById('contents');
+	const hashInput = document.getElementById('hash-input');
+	const demoMagnets = document.getElementById('demo_magnets');
+	const btnLoad = document.getElementById('load');
+	const btnClear = document.getElementById('clear');
+
+	// Event Listeners
+	demoMagnets.addEventListener('click', (e) => {
+		if (e.target.classList.contains('magnet')) {
+			hashInput.value = e.target.innerText;
+		}
+		load()
+	});
+
+	btnLoad.addEventListener('click', load);
+
+	btnClear.addEventListener('click', () => {
+		hashInput.value = '';
+		hashInput.focus();
+		document.execCommand("paste")
+	});
+
+	contents.addEventListener('click', (e) => {
+		if (e.target.classList.contains('file')) {
+			const fileName = e.target.dataset.name;
+			const rawSource = `/video/stream/${encodeURIComponent(currentMagnet)}/${fileName}`;
+
+			video.src = rawSource;
+
+			videoSrc.innerText = "Raw";
+			videoSrc.href = rawSource;
+
+			vlcSrc.innerText = 'VLC';
+			vlcSrc.href = `vlc://${window.location.origin}${rawSource}`;
+
+			nplayerSrc.innerText = 'nPlayer';
+			nplayerSrc.href = `nplayer://${window.location.origin}${rawSource}`;
+		}
+	});
+
+	magnets.addEventListener('click', async (e) => {
+		if (e.target.classList.contains('delete')) {
+			const hash = e.target.parentNode.dataset.hash;
+			await fetch(`/video/delete/${hash}`);
+		}
+	});
+
+	async function load() {
+		btnLoad.disabled = true;
+		contents.innerHTML = "<li>Loading...</li>";
+
+		currentMagnet = hashInput.value;
+
+		if (!currentMagnet) {
+			return console.error("No magnet hash provided.");
+		}
+
+		const url = `/video/add/${currentMagnet}`;
+		const res = await fetch(url);
+		const data = await res.json();
+
+		contents.innerHTML = "";
+		data.forEach((file) => {
+			contents.innerHTML += `
+			<li class="file url" data-name="${file.name}">
+				<span class="url">${file.name}</span> 
+				(${format_bytes(file.length, 0)}) 
+				<a href="/video/stream/${currentMagnet}/${file.name}">SRC</a>
+			</li>`
+		});
+
+		btnLoad.disabled = false;
+	};
+
+	// 	TODO: Call this function on some interval or events or CHANGE to websocket
+	async function client_magnet_list() {
+		const res = await fetch('/video/list');
+		const data = await res.json();
+
+		magnets.innerHTML = "";
+		if (data.length > 0) {
+			data.forEach((magnet, index) => {
+				magnets.innerHTML += `<li data-hash="${magnet.hash}"><span class="magnet">${magnet.hash}</span> [<span class="delete url">Delete</span>]</li>`;
+			});
+		}
+		else {
+			magnets.innerHTML = '<li>N/A</li>';
+		}
+
+		setTimeout(client_magnet_list, 1000);
+	}
+
+	// 	TODO: Call this function on some interval or events or CHANGE to websocket
+	async function check_for_client_stats() {
+		const res = await fetch('/video/stats');
+		const data = await res.json();
+
+		stats.innerHTML = `
+			<li>Progress: ${data.progress}%</li>
+			<li>Download Speed: ${format_bytes(data.downloadSpeed, 0)}/s</li>
+			<li>Ratio: ${data.ratio}</li>
+		`;
+
+		setTimeout(check_for_client_stats, 1000);
+	}
+
+	// Run
+	client_magnet_list();
+	check_for_client_stats();
+
+	//	Convert bytes to a human readable form
+	function format_bytes(bytes, decimals) {
+		if (bytes == 0) {
+			return '0 Byte';
+		}
+		var k = 1024;
+		var dm = decimals + 1 || 3;
+		var sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+		var i = Math.floor(Math.log(bytes) / Math.log(k));
+		return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+	}
+</script>
+
+</html>
